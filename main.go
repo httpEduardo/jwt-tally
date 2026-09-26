@@ -56,7 +56,10 @@ func decodeSegment(segment string) (map[string]any, error) {
 // Parse splits and decodes a compact JWT. A "Bearer " prefix is accepted.
 func Parse(raw string) (*Token, error) {
 	raw = strings.TrimSpace(raw)
-	raw = strings.TrimSpace(strings.TrimPrefix(strings.TrimPrefix(raw, "Bearer "), "bearer "))
+	if len(raw) >= len("Bearer ") && strings.EqualFold(raw[:len("Bearer ")], "Bearer ") {
+		raw = raw[len("Bearer "):]
+	}
+	raw = strings.TrimSpace(raw)
 	parts := strings.Split(raw, ".")
 	if len(parts) != 3 {
 		return nil, fmt.Errorf("expected 3 dot-separated segments, got %d", len(parts))

@@ -1,66 +1,68 @@
 # jwt-tally
 
-Decodes JSON Web Tokens and flags the header and claim problems that most often lead to authentication bugs: unsigned tokens, missing expiry, remote key references, mismatched issuer or audience, and secrets hiding in the payload.
+`jwt-tally` is a small command-line tool for inspecting JSON Web Tokens. It decodes a token and reports potentially risky headers and claims, helping developers review tokens found in logs, test fixtures, or incident reports.
 
-Handy for looking at tokens pulled from logs, proxy traffic or bug reports without pasting them into a website.
+> **Important:** jwt-tally does not verify signatures or establish that a token is authentic. Use it for inspection only; never use its output to authorize a request.
 
-> **Signatures are not verified.** jwt-tally inspects what a token *claims*; it doesn't prove the token is authentic.
+## What it checks
 
-## Checks
+- Missing or `none` signing algorithms and empty signature segments
+- Remote key references (`jku`, `x5u`) and embedded `jwk` headers
+- Suspicious characters in `kid` values
+- Missing, malformed, expired, or future-dated time claims
+- Token lifetime above a configurable limit
+- Expected issuer and audience values
+- Payload field names that may indicate exposed secrets
 
-**Header**
-- `alg` missing, or `none` in any casing (`None`, `NONE`) — unsigned tokens must be rejected
-- a non-`none` algorithm with an empty signature segment
-- `jku` / `x5u` pointing to a remote key set, or an embedded `jwk` — classic key-confusion vectors
-- `kid` containing path or SQL metacharacters
+Findings are reported as `OK`, `WARN`, or `FAIL`. JWT payloads are encoded, not encrypted, so do not put secrets in them.
 
-**Claims**
-- no `exp`, a non-numeric `exp`, or an already expired token
-- `nbf` in the future and `iat` in the future
-- lifetime (`exp - iat`) longer than `-max-lifetime` (24h by default)
-- `iss` / `aud` not matching the expected values (`aud` can be a string or an array)
-- payload keys that look like secrets: `password`, `secret`, `api_key`, `private_key`, …
+## Requirements
+
+- Go 1.21 or later
 
 ## Usage
 
+Inspect one token:
+
+```bash
+go run . -token "eyJhbGciOi..."
+```
+
+Compare issuer and audience claims:
+
 ```bash
 go run . -token "eyJhbGciOi..." -issuer https://auth.example.com -audience api
-go run . -file sample_tokens.txt -audience suite
 ```
 
-```text
-== line 4
-Header:
-  {
-    "alg": "none",
-    "typ": "JWT"
-  }
-Payload:
-  {
-    "iat": 1680000000,
-    "sub": "tester"
-  }
-Checks:
-  FAIL  alg=none: the token is unsigned and must be rejected
-  WARN  no exp claim: the token never expires
-  FAIL  audience [] does not include "suite"
+Inspect tokens from a file or standard input (one token per line):
+
+```bash
+go run . -file sample_tokens.txt -audience api
+cat tokens.txt | go run . -file -
 ```
 
-| Flag | Description |
-|------|-------------|
-| `-token` | A single JWT (a `Bearer ` prefix is fine) |
-| `-file` | One token per line; `-` reads stdin; `#` lines are skipped |
-| `-issuer` | Expected `iss` |
-| `-audience` | Expected `aud` |
-| `-max-lifetime` | Warn above this lifetime, e.g. `1h`, `72h`; `0` disables |
+The tool accepts a `Bearer` prefix, skips blank lines and lines beginning with `#`, and supports long token lines.
 
-Exit codes: `0` no failures, `1` at least one `FAIL`, `2` usage error or unreadable file.
+## Options
 
-## Build & test
+| Option | Description |
+| --- | --- |
+| `-token` | Inspect a single JWT. |
+| `-file` | Read one JWT per line; use `-` for standard input. |
+| `-issuer` | Require the `iss` claim to match this value. |
+| `-audience` | Require the `aud` claim to contain this value. |
+| `-max-lifetime` | Warn when `exp - iat` exceeds this duration. Defaults to `24h`; `0` disables the check. |
+
+## Exit status
+
+- `0` — no failed checks
+- `1` — one or more checks failed
+- `2` — invalid usage or an input file could not be read
+
+## Build
 
 ```bash
 go build -o jwt-tally .
-go test ./...
 ```
 
 ## License

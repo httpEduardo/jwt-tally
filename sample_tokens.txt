@@ -1,2 +1,4 @@
+# HS256 token with an audience and far-future expiry
 eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkZW1vIiwiZXhwIjoxODkzNDU2MDAwLCJyb2xlIjoidmlld2VyIiwiYXVkIjoic3VpdGUifQ.signature
+# Unsigned token (alg=none) without expiry
 eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJ0ZXN0ZXIiLCJpYXQiOjE2ODAwMDAwMDB9.
